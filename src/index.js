@@ -8,6 +8,9 @@ EventEmitter.defaultMaxListeners = 0;
 import cli from 'cli';
 import { exec } from 'child_process';
 import opener from 'opener';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
 import Promise from 'bluebird';
 
 import {
@@ -25,8 +28,10 @@ import {
 } from './utils/config';
 
 import createApi from './utils/api';
+import processRNPlayConfig from './utils/processRNPlayConfig';
 
 const execAsync = Promise.promisify(exec);
+const tmp = os.tmpdir();
 
 const { RNPLAY_ENV } = process.env;
 const PREFIX = RNPLAY_ENV ? `${RNPLAY_ENV}.` : '';
@@ -116,16 +121,33 @@ const openAppInBrowser = () => {
     });
 };
 
+const splitByConfig = () => {
+  return new Promise((resolve, reject) => {
+    const config = processRNPlayConfig();
+    const folders = Object.keys(config);
+
+    folders.forEach((project, index) => {
+      let target = path.join(tmp, project);
+      let stat;
+
+      execAsync(`cp -r ${config[project]} ${target} && git init ${target}`)
+        .done(() => index === folders.length - 1 ? resolve() : null);
+    });
+  });
+}
+
 const ACTION_MAP = {
   authenticate: createConfig,
   create: createGitRepo,
-  open: openAppInBrowser
+  open: openAppInBrowser,
+  split: splitByConfig,
 };
 
 cli.parse({
   authenticate: ['a', 'Authenticate to rnplay.org with a token'],
   create:       ['c', 'Create a git remote for this application'],
-  open:         ['o', 'Opens the last created application in rnplay.org']
+  open:         ['o', 'Opens the last created application in rnplay.org'],
+  split:        ['s', 'Split repo code by using `rnplay` configuration block in package.json']
 });
 
 cli.main((args, options) => {

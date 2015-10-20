@@ -6,6 +6,7 @@ import cli from 'cli';
 import Promise from 'bluebird';
 import val from 'validator';
 import path from 'path';
+import getPackageConfig from './getPackageConfig';
 
 export const withInputAsync = () => {
   return new Promise((resolve, reject) => {
@@ -60,10 +61,7 @@ export const readEmailFromCLI = () => {
 };
 
 export const maybeUsePackageName = () => {
-  let name;
-  try {
-    name = require(path.join(process.cwd(), 'package.json')).name;
-  } catch (e) {}
+  let name = getPackageConfig().name;
 
   if (name) {
     cli.output(`We found the following project name: ${name} - do you want to use it? y/n`);

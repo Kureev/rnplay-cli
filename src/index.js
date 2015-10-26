@@ -135,16 +135,26 @@ const createGitRepo = () => {
  * Opens the current repo in the browser
  * @return {object} A promise
  */
-const openAppInBrowser = () => {
-  return readLocalConfig()
-    .then(({ urlToken }) => {
-      if (!urlToken) {
-        return cli.error('You have to create an application using `rnplay --create` first');
+const openAppInBrowser = (cli, options) => {
+  let config = path.join(tmp, options.open, CFG_FILE);
+
+  if (options.open === '.') {
+    config = path.join(process.cwd(), CFG_FILE);
+  }
+
+  return new Promise((resolve, reject) => {
+    fs.readFile(config, 'utf-8', (err, file) => {
+      if (err) {
+        cli.fatal('Sorry, we can\'t open project called "' + options.open +
+          '", check project name and try again');
+        reject(err);
       }
 
-      const url = RNPLAY_APP_URL + urlToken;
+      const url = RNPLAY_APP_URL + JSON.parse(file).urlToken;
       opener(url);
+      resolve();
     });
+  });
 };
 
 const splitByConfig = () => {
@@ -162,7 +172,7 @@ const splitByConfig = () => {
       execAsync(`cp -r ${config[project]} ${target}`)
         .then(() =>
           getAddRemoteCommand(project)
-            .then((cmd) => exec(`cd ${target} && git init && ${cmd}`))
+            .then((cmd) => exec(`cd ${target} && git init && ${cmd} && git push rnplay master`))
             .then((s) => s.spawnargs.pop().match(/\/(\w{6})\.git$/)[1])
             .then(saveURLToken(target))
           )
@@ -185,7 +195,7 @@ const ACTION_MAP = {
 cli.parse({
   authenticate: ['a', 'Authenticate to rnplay.org with a token'],
   create:       ['c', 'Create a git remote for this application'],
-  open:         ['o', 'Opens the last created application in rnplay.org'],
+  open:         ['o', 'Opens the last created application in rnplay.org', 'string', '.'],
   split:        ['s', 'Split repo code by using `rnplay` configuration block in package.json']
 });
 
@@ -197,7 +207,7 @@ cli.main((args, options) => {
     return;
   }
 
-  action(cli)
+  action(cli, options)
     .catch((e) => {
       cli.error('Ooops, there has been an error: \n' + e.message);
       cli.info('If you are sure that you did nothing wrong, please file an issue at the rnplay-cli repo!');

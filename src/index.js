@@ -100,19 +100,11 @@ const getAddRemoteCommand = (name) => {
  */
 const createGitRepo = () => {
   let config;
-  return readConfig()
-    .then((conf) => {
-      if (!conf.email || !conf.token) {
-        throw new Error ('Invalid config, please run `rnplay -a` first');
-      }
-      config = conf;
-    })
+  return getConfig()
+    .then((c) => config = c)
     .then(maybeUsePackageName)
     .then((name) => name ? name : readRepoNameFromCLI())
-    .then((name) => {
-      return api.postCreateRepo(name, config)
-        .then(({ body: { url_token } }) => url_token);
-    })
+    .then((name) => makeURLToken(name, config))
     .then((urlToken) => {
       return saveLocalConfig({ urlToken })
         .then(() => urlToken);
@@ -120,9 +112,7 @@ const createGitRepo = () => {
     .then((urlToken) => {
       cli.info('Adding git remote');
 
-      const remoteName = 'rnplay';
-      const url = `https://${config.token}:@git.rnplay.org/${urlToken}.git`;
-      const cmd = `git remote add ${remoteName} ${url}`;
+      const cmd = formatCommand(urlToken, config);
 
       return execAsync(cmd)
         .then(() => [remoteName, url]);

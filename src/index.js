@@ -24,7 +24,8 @@ import {
   readConfig,
   saveConfig,
   saveLocalConfig,
-  readLocalConfig
+  readLocalConfig,
+  CFG_FILE
 } from './utils/config';
 
 import createApi from './utils/api';
@@ -71,6 +72,12 @@ const checkConfig = (conf) => {
 
   return conf;
 };
+
+const saveURLToken = (dir) => (urlToken) =>
+  fs.writeFileSync(
+    path.join(dir, CFG_FILE),
+    `${JSON.stringify({ urlToken })}\n`
+  ) && urlToken;
 
 const makeURLToken = (name, config) =>
   api.postCreateRepo(name, config)
@@ -155,7 +162,10 @@ const splitByConfig = () => {
       execAsync(`cp -r ${config[project]} ${target}`)
         .then(() =>
           getAddRemoteCommand(project)
-            .then((cmd) => exec(`cd ${target} && git init && ${cmd}`)))
+            .then((cmd) => exec(`cd ${target} && git init && ${cmd}`))
+            .then((s) => s.spawnargs.pop().match(/\/(\w{6})\.git$/)[1])
+            .then(saveURLToken(target))
+          )
         .done(() =>
           index === folders.length - 1 ?
             cli.info(`Done setup for ${target}`) && resolve() :

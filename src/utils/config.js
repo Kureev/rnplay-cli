@@ -27,6 +27,8 @@ const writeJSON = (path) => (obj) => {
   return writeFileAsync(path, `${JSON.stringify(obj)}\n`);
 };
 
+export const CFG_FILE = CONFIG_FILE;
+
 export const readConfig = readJSON(CONFIG_FILE_PATH, 'Missing or corrupt config file, please run `rnplay -a`');
 export const saveConfig = writeJSON(CONFIG_FILE_PATH);
 

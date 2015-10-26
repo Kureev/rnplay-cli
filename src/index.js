@@ -64,6 +64,35 @@ const createConfig = () => {
     });
 };
 
+const checkConfig = (conf) => {
+  if (!conf.email || !conf.token) {
+    throw new Error ('Invalid config, please run `rnplay -a` first');
+  }
+
+  return conf;
+};
+
+const makeURLToken = (name, config) =>
+  api.postCreateRepo(name, config)
+    .then(({ body: { url_token } }) => url_token);
+
+const getConfig = () => readConfig().then(checkConfig);
+
+const formatCommand = (urlToken, config) => {
+  const remoteName = 'rnplay';
+  const url = `https://${config.token}:@git.rnplay.org/${urlToken}.git`;
+  return `git remote add ${remoteName} ${url}`;
+}
+
+const getAddRemoteCommand = (name) => {
+  let config;
+
+  return getConfig()
+    .then((c) => config = c)
+    .then(() => makeURLToken(name, config))
+    .then((token) => formatCommand(token, config));
+}
+
 /**
  * Creates a git repo with a name provided by the user and then
  * adds a remove to the local git repo.
@@ -122,6 +151,8 @@ const openAppInBrowser = () => {
 };
 
 const splitByConfig = () => {
+  const dir = path.join(process.cwd());
+
   return new Promise((resolve, reject) => {
     const config = processRNPlayConfig();
     const folders = Object.keys(config);
@@ -130,8 +161,16 @@ const splitByConfig = () => {
       let target = path.join(tmp, project);
       let stat;
 
-      execAsync(`cp -r ${config[project]} ${target} && git init ${target}`)
-        .done(() => index === folders.length - 1 ? resolve() : null);
+      cli.info(`Adding git remote for ${project}`);
+      execAsync(`cp -r ${config[project]} ${target}`)
+        .then(() =>
+          getAddRemoteCommand(project)
+            .then((cmd) => exec(`cd ${target} && git init && ${cmd}`)))
+        .done(() =>
+          index === folders.length - 1 ?
+            cli.info(`Done setup for ${target}`) && resolve() :
+            cli.info(index + ' of ' + folders.length - 1)
+        );
     });
   });
 }

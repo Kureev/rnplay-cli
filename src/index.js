@@ -169,18 +169,18 @@ const splitByConfig = () => {
       let stat;
 
       cli.info(`Adding git remote for ${project}`);
-      execAsync(`cp -r ${config[project]} ${target}`)
+      execAsync(`rm -rf ${target} && cp -r ${config[project]} ${target}`)
         .then(() =>
           getAddRemoteCommand(project)
-            .then((cmd) => exec(`cd ${target} && git init && ${cmd} && git push rnplay master`))
-            .then((s) => s.spawnargs.pop().match(/\/(\w{6})\.git$/)[1])
+            .then((cmd) => exec(`cd ${target} && git init && ${cmd} && git add . && git commit -m "Initial rnplay commit" && git push rnplay master`))
+            .then((s) => s.spawnargs.pop().match(/\/(.{6})\.git/)[1])
             .then(saveURLToken(target))
           )
-        .done(() =>
+        .done(() => {
           index === folders.length - 1 ?
             cli.info(`Done setup for ${target}`) && resolve() :
             cli.info(index + ' of ' + folders.length - 1)
-        );
+        });
     });
   });
 }
